@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AstroFib V7.0 - Trade Ledger</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B1120; --bg-panel: #151E32; --bg-card: #1E293B; --border-soft: #334155;
+            --text-main: #F8FAFC; --text-muted: #94A3B8;
+            --teal-soft: #2DD4BF; --rose-soft: #FB7185; --gold-soft: #FBBF24; --purple-soft: #A78BFA;
+        }
+        
+        body { margin: 0; padding: 15px; padding-bottom: 80px; background-color: var(--bg-base); color: var(--text-main); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased;}
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-soft); padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 0; color: var(--text-main); font-weight: 700; letter-spacing: 0.5px;}
+        .v-badge { font-size: 11px; color: var(--purple-soft); border: 1px solid var(--purple-soft); padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;}
+        
+        .controls { display: flex; gap: 8px; }
+        button { background: var(--bg-panel); border: 1px solid var(--border-soft); color: var(--text-muted); padding: 10px 16px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s ease;}
+        button:hover { color: var(--text-main); border-color: var(--text-muted); }
+        .btn-active { background: rgba(167, 139, 250, 0.1); border-color: var(--purple-soft); color: var(--purple-soft); }
+
+        /* DASHBOARD STATISTIK */
+        .stats-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+        @media (max-width: 768px) { .stats-panel { grid-template-columns: repeat(2, 1fr); } }
+        .stat-box { background: linear-gradient(145deg, var(--bg-panel), var(--bg-card)); border: 1px solid var(--border-soft); border-radius: 14px; padding: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); position: relative; overflow: hidden;}
+        .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; letter-spacing: 1px; margin-bottom: 8px;}
+        .stat-val { font-size: 28px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; color: var(--text-main);}
+        .stat-val.teal { color: var(--teal-soft); }
+        .stat-val.rose { color: var(--rose-soft); }
+
+        /* TABS & FILTERS */
+        .filter-area { display: flex; flex-direction: column; gap: 12px; margin-bottom: 25px;}
+        .tf-container { display: flex; gap: 10px; background: var(--bg-panel); padding: 5px; border-radius: 10px; width: fit-content; border: 1px solid var(--border-soft);}
+        .tf-btn { border: none; background: transparent; padding: 10px 20px; border-radius: 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; transition: 0.3s; cursor: pointer;}
+        .tf-btn.active { background: var(--border-soft); color: var(--text-main); box-shadow: 0 2px 4px rgba(0,0,0,0.2);}
+
+        .btn-clear { background: rgba(251, 113, 133, 0.1); color: var(--rose-soft); border: 1px solid var(--rose-soft); padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; height: fit-content;}
+
+        /* LIST JURNAL */
+        .journal-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .j-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s;}
+        @media (max-width: 768px) { .j-card { flex-direction: column; align-items: flex-start; gap: 15px; } .j-right { width: 100%; display: flex; justify-content: space-between; align-items: flex-end;} }
+        
+        .j-card:hover { border-color: var(--text-muted); }
+        .j-left { display: flex; flex-direction: column; gap: 5px; }
+        .j-sym { font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 10px;}
+        .j-date { font-size: 11px; color: var(--text-muted); font-weight: 500; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;}
+        .j-mode-badge { font-size: 10px; font-weight: 700; color: #fff; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.1); font-family: 'Inter';}
+        
+        .j-mid { display: flex; gap: 20px; }
+        .j-data-box { display: flex; flex-direction: column; gap: 3px; }
+        .j-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;}
+        .j-val { font-size: 15px; font-weight: 700; font-family: 'Space Grotesk'; }
+        
+        .j-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px;}
+        .badge { padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 1px; font-family: 'Inter'; text-align: center;}
+        .badge-run { background: rgba(251, 191, 36, 0.1); border: 1px solid var(--gold-soft); color: var(--gold-soft); }
+        .badge-win { background: rgba(45, 212, 191, 0.1); border: 1px solid var(--teal-soft); color: var(--teal-soft); }
+        .badge-loss { background: rgba(251, 113, 133, 0.1); border: 1px solid var(--rose-soft); color: var(--rose-soft); }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); font-family: 'Space Grotesk'; font-size: 16px; border: 1px dashed var(--border-soft); border-radius: 12px; background: rgba(0,0,0,0.1);}
+    </style>
+</head>
+<body>
+
+   <header>
+    <h1>SYS.LEDGER <span class="v-badge">AUTO-GRADING</span></h1>
+    <div class="controls">
+        <button onclick="window.location.href='index.html'">📊 KARTU</button>
+        <button onclick="window.location.href='bubble.html'">🫧 BUBBLE</button>
+        <button onclick="window.location.href='smc.html'">🐋 SMC</button>
+        <button onclick="window.location.href='web3.html'">🪂 WEB3</button>
+        <button class="btn-active" onclick="window.location.href='journal.html'">📓 JURNAL</button>
+        <button onclick="window.location.href='news.html'">📰 BERITA</button>
+        <button class="btn-sync" onclick="fetchLivePrices()" style="margin-left: 10px;">KOREKSI HARGA</button>
+    </div>
+</header>
+    <div class="stats-panel">
+        <div class="stat-box">
+            <div class="stat-lbl">TOTAL TRADE</div>
+            <div class="stat-val" id="st-total">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-lbl">WIN RATE (AKURASI)</div>
+            <div class="stat-val teal" id="st-winrate">0%</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-lbl">PROFIT (HIT TP)</div>
+            <div class="stat-val teal" id="st-win">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-lbl">LOSS (HIT SL)</div>
+            <div class="stat-val rose" id="st-loss">0</div>
+        </div>
+    </div>
+
+    <div class="filter-area">
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="tf-container" style="margin: 0;">
+                <button class="tf-btn active" id="btn-virtual" onclick="switchTab('virtual')">VIRTUAL (BACKTEST)</button>
+                <button class="tf-btn" id="btn-real" onclick="switchTab('real')">REAL PORTFOLIO</button>
+            </div>
+            <button class="btn-clear" onclick="clearJournal()">🗑️ Bersihkan Jurnal Ini</button>
+        </div>
+        
+        <div class="tf-container" style="margin: 0; border-color: rgba(167, 139, 250, 0.3);">
+            <button class="tf-btn active" id="btn-short" onclick="switchMode('short')">DAY SWING (24H)</button>
+            <button class="tf-btn" id="btn-long" onclick="switchMode('long')">POSITION (7D)</button>
+        </div>
+    </div>
+
+    <div id="journal-list" class="journal-grid">
+        <div class="empty-state">Menghubungkan ke satelit data...</div>
+    </div>
+
+    <script>
+        let currentTab = 'virtual';
+        let currentMode = 'short'; // Default filter ke 24H
+        let livePrices = {}; 
+
+        async function fetchLivePrices() {
+            document.getElementById('journal-list').innerHTML = `<div class="empty-state">Mengecek harga pasar real-time untuk koreksi jurnal...</div>`;
+            try {
+                // Memanfaatkan Kulkas Data kalau ada, agar hemat API
+                const cachedData = sessionStorage.getItem('omni_data');
+                const cachedTime = sessionStorage.getItem('omni_time');
+                const now = new Date().getTime();
+
+                let data = [];
+                if (cachedData && cachedTime && (now - parseInt(cachedTime) < 180000)) {
+                    data = JSON.parse(cachedData);
+                } else {
+                    const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&per_page=150&page=1');
+                    data = await res.json();
+                }
+
+                data.forEach(coin => { livePrices[coin.symbol.toUpperCase()] = coin.current_price; });
+                evaluateAndRender();
+            } catch(e) {
+                document.getElementById('journal-list').innerHTML = `<div class="empty-state" style="color:var(--rose-soft)">Gagal menarik harga live. Koneksi terputus.</div>`;
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('btn-virtual').classList.toggle('active', tab === 'virtual');
+            document.getElementById('btn-real').classList.toggle('active', tab === 'real');
+            evaluateAndRender();
+        }
+
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-short').classList.toggle('active', mode === 'short');
+            document.getElementById('btn-long').classList.toggle('active', mode === 'long');
+            evaluateAndRender();
+        }
+
+        function evaluateAndRender() {
+            let storageKey = currentTab === 'virtual' ? 'omni_journal_virtual' : 'omni_journal_real';
+            let allJournalData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            // FILTER BERDASARKAN TIMEFRAME (MODE)
+            let journalData = [];
+            let originalIndices = []; // Menyimpan index asli untuk update status ke localStorage
+
+            allJournalData.forEach((trade, index) => {
+                // Fallback untuk data lama yang belum punya mode (dianggap 'short')
+                let tradeMode = trade.mode || 'short'; 
+                if (tradeMode === currentMode) {
+                    journalData.push(trade);
+                    originalIndices.push(index);
+                }
+            });
+            
+            let html = '';
+            let win = 0; let loss = 0; let running = 0;
+
+            if (journalData.length === 0) {
+                document.getElementById('journal-list').innerHTML = `<div class="empty-state">Belum ada catatan trade untuk strategi ${currentMode === 'short' ? '24H' : '7D'} di tab ini.</div>`;
+                updateDashboard(0, 0, 0);
+                return;
+            }
+
+            // Loop terbalik agar yang terbaru di atas
+            for (let i = journalData.length - 1; i >= 0; i--) {
+                let trade = journalData[i];
+                let realIndex = originalIndices[i];
+                
+                let currentP = livePrices[trade.symbol] || trade.entry; 
+                let status = trade.status;
+
+                // LOGIKA AUTO-KOREKSI
+                if (status === 'RUNNING') {
+                    if (currentP >= trade.tp) status = 'WIN';
+                    else if (currentP <= trade.sl) status = 'LOSS';
+                    
+                    if (status !== 'RUNNING') {
+                        trade.status = status;
+                        let rawData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                        rawData[realIndex].status = status;
+                        localStorage.setItem(storageKey, JSON.stringify(rawData));
+                    }
+                }
+
+                if (status === 'WIN') win++;
+                else if (status === 'LOSS') loss++;
+                else running++;
+
+                let badgeCls = status === 'WIN' ? 'badge-win' : (status === 'LOSS' ? 'badge-loss' : 'badge-run');
+                let badgeTxt = status === 'RUNNING' ? '⏳ RUNNING' : (status === 'WIN' ? '✅ TARGET HIT' : '❌ STOPPED OUT');
+                let modeLabel = trade.mode === 'long' ? '7D POSITION' : '24H SWING';
+
+                html += `
+                <div class="j-card">
+                    <div class="j-left">
+                        <div class="j-sym">
+                            ${trade.symbol} 
+                            <span class="j-mode-badge">${modeLabel}</span>
+                        </div>
+                        <div class="j-date">${trade.date}</div>
+                        ${trade.size ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Size: ${trade.size} | Cost: ${trade.cost}</div>` : ''}
+                    </div>
+                    
+                    <div class="j-mid">
+                        <div class="j-data-box">
+                            <span class="j-lbl">Entry</span>
+                            <span class="j-val">$${trade.entry.toLocaleString(undefined, {maximumFractionDigits:4})}</span>
+                        </div>
+                        <div class="j-data-box">
+                            <span class="j-lbl" style="color:var(--teal-soft)">Take Profit</span>
+                            <span class="j-val" style="color:var(--teal-soft)">$${trade.tp.toLocaleString(undefined, {maximumFractionDigits:4})}</span>
+                        </div>
+                        <div class="j-data-box">
+                            <span class="j-lbl" style="color:var(--rose-soft)">Stop Loss</span>
+                            <span class="j-val" style="color:var(--rose-soft)">$${trade.sl.toLocaleString(undefined, {maximumFractionDigits:4})}</span>
+                        </div>
+                    </div>
+
+                    <div class="j-right">
+                        <div class="badge ${badgeCls}">${badgeTxt}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Live: <strong style="color:var(--text-main)">$${currentP.toLocaleString(undefined, {maximumFractionDigits:4})}</strong></div>
+                    </div>
+                </div>`;
+            }
+
+            document.getElementById('journal-list').innerHTML = html;
+            updateDashboard(win, loss, running);
+        }
+
+        function updateDashboard(w, l, r) {
+            let totalFinished = w + l;
+            let totalAll = totalFinished + r;
+            let wr = totalFinished === 0 ? 0 : Math.round((w / totalFinished) * 100);
+
+            document.getElementById('st-total').innerText = totalAll;
+            document.getElementById('st-win').innerText = w;
+            document.getElementById('st-loss').innerText = l;
+            
+            let wrEl = document.getElementById('st-winrate');
+            wrEl.innerText = wr + "%";
+            wrEl.className = "stat-val " + (wr >= 50 ? "teal" : "rose");
+        }
+
+        function clearJournal() {
+            if(confirm(`Yakin ingin menghapus seluruh catatan di Tab [${currentTab.toUpperCase()}] ini? (Tindakan permanen)`)) {
+                let storageKey = currentTab === 'virtual' ? 'omni_journal_virtual' : 'omni_journal_real';
+                localStorage.removeItem(storageKey);
+                evaluateAndRender();
+            }
+        }
+
+        window.onload = () => { fetchLivePrices(); };
+    </script>
+</body>
+</html>

@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AstroFib V7.4.1 - Galaxy (Performance Mode)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #080C17; --bg-panel: #151E32; --bg-card: #1E293B; --border-soft: #334155;
+            --text-main: #F8FAFC; --text-muted: #94A3B8;
+            --teal-soft: #2DD4BF; --rose-soft: #FB7185; --gold-soft: #FBBF24; --purple-soft: #A78BFA;
+        }
+        
+        body { margin: 0; padding: 15px; padding-bottom: 80px; background-color: var(--bg-base); color: var(--text-main); font-family: 'Inter', sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased;}
+        
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-soft); padding-bottom: 15px; margin-bottom: 20px; overflow-x: auto; position: relative; z-index: 1000;}
+        h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 0; color: var(--text-main); font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; margin-right: 20px;}
+        .v-badge { font-size: 11px; color: var(--teal-soft); border: 1px solid var(--teal-soft); padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;}
+        
+        .controls { display: flex; gap: 8px; white-space: nowrap;}
+        button { background: var(--bg-panel); border: 1px solid var(--border-soft); color: var(--text-muted); padding: 10px 16px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s ease;}
+        button:hover { color: var(--text-main); border-color: var(--text-muted); }
+        .btn-active { background: rgba(167, 139, 250, 0.1); border-color: var(--purple-soft); color: var(--purple-soft); }
+        .btn-sync { background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.3); color: var(--teal-soft); margin-left: 10px;}
+
+        .hud-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 15px; position: relative; z-index: 1000;}
+        .hud-box { background: var(--bg-panel); border: 1px solid var(--border-soft); border-radius: 12px; padding: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.5);}
+        .hud-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 6px;}
+        .hud-val { font-size: 18px; font-weight: 700; font-family: 'Space Grotesk', sans-serif; color: var(--text-main);}
+
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; z-index: 1000;}
+        .tf-container { display: flex; gap: 10px; background: var(--bg-panel); padding: 5px; border-radius: 10px; border: 1px solid var(--border-soft);}
+        .tf-btn { border: none; background: transparent; padding: 8px 20px; border-radius: 6px; color: var(--text-muted); font-size: 13px; font-weight: 600; transition: 0.3s;}
+        .tf-btn.active { background: var(--border-soft); color: var(--text-main);}
+        
+        .zoom-controls { display: flex; gap: 5px; background: var(--bg-panel); padding: 5px; border-radius: 10px; border: 1px solid var(--border-soft);}
+        .zoom-btn { background: transparent; border: none; color: var(--text-main); font-size: 18px; width: 35px; height: 35px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;}
+        .zoom-btn:hover { background: var(--border-soft); }
+
+        /* GALAXY CANVAS - OPTIMIZED */
+        #viewport {
+            position: relative; width: 100%; height: 70vh; 
+            background-color: var(--bg-base); border-radius: 16px; overflow: hidden; 
+            border: 1px solid rgba(255,255,255,0.05); cursor: grab;
+            /* Disederhanakan agar tidak membebani render background */
+            background-image: radial-gradient(circle at 50% 50%, rgba(30, 41, 59, 0.5) 0%, transparent 80%);
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            will-change: transform;
+        }
+        #viewport:active { cursor: grabbing; }
+
+        #bubbleCanvas {
+            position: absolute; top: 50%; left: 50%;
+            width: 6000px; height: 6000px; /* Ukuran pas agar koordinat tidak terlalu ekstrim */
+            transform: translate(-50%, -50%) scale(0.6);
+            transform-origin: center center;
+            pointer-events: none; 
+            will-change: transform; /* Hardware Acceleration */
+        }
+        
+        /* BUBBLES - OPTIMIZED (No Blur, No Heavy Shadows initially) */
+        .bubble { 
+            position: absolute; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: rgba(21, 30, 50, 0.95); /* Lebih solid, menghapus blur */
+            border-width: 2px; border-style: solid;
+            transform: translate(-50%, -50%) scale(0); opacity: 0;
+            transition: opacity 0.3s ease; /* Hapus transisi all/transform yg berat saat load awal */
+            pointer-events: auto; 
+            will-change: transform, opacity; /* GPU VIP Lane */
+        }
+        /* Efek hover saja yang pakai filter/shadow agar ringan */
+        .bubble:hover { filter: brightness(1.2); z-index: 999 !important; box-shadow: 0 0 15px rgba(255,255,255,0.1); cursor: pointer;}
+        
+        .b-sym { font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: var(--text-main); text-align: center; width: 90%; overflow: hidden; text-overflow: ellipsis;}
+        .b-chg { font-family: 'Inter', sans-serif; font-weight: 600; margin-top: 2px; letter-spacing: 0.5px;}
+        
+        .b-pump { border-color: rgba(45, 212, 191, 0.4); } .b-pump .b-chg { color: var(--teal-soft); }
+        .b-dump { border-color: rgba(251, 113, 133, 0.4); } .b-dump .b-chg { color: var(--rose-soft); }
+        .target-watch { border-color: var(--gold-soft); background: rgba(251, 191, 36, 0.2); z-index: 800;} .target-watch .b-chg { color: var(--gold-soft); }
+        .target-sweep { border-color: var(--rose-soft); background: rgba(251, 113, 133, 0.2); z-index: 800;} .target-sweep .b-chg { color: var(--rose-soft); }
+
+        /* Animasi berkedip disederhanakan */
+        .target-buy { border: 2px solid var(--teal-soft) !important; background: rgba(45, 212, 191, 0.2) !important; z-index: 900 !important; animation: pulseTealLight 3s infinite alternate; }
+        .target-buy .b-chg { color: var(--teal-soft); }
+        @keyframes pulseTealLight { 0% { box-shadow: none; border-color: rgba(45, 212, 191, 0.5); } 100% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.5); border-color: #5EEAD4; } }
+
+        /* UI LAINNYA (Sama persis) */
+        .ticker-wrap { position: fixed; bottom: 0; left: 0; width: 100%; height: 38px; background: var(--bg-panel); border-top: 1px solid var(--border-soft); overflow: hidden; box-sizing: content-box; z-index: 990; display: flex; align-items: center; }
+        .ticker-label { background: var(--border-soft); color: var(--text-main); font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 991; letter-spacing: 0.5px;}
+        .ticker { display: inline-block; white-space: nowrap; padding-left: 100%; animation: tickerScroll 30s linear infinite; font-size: 13px; font-weight: 500; }
+        @keyframes tickerScroll { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        .t-item { display: inline-block; padding: 0 25px; color: var(--text-main); } .t-sym { color: var(--text-muted); margin-right: 6px; }
+
+        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;}
+        .toast { background: rgba(11, 17, 32, 0.95); border-left: 4px solid var(--teal-soft); border-radius: 8px; padding: 15px 20px; color: var(--text-main); box-shadow: 0 10px 25px rgba(0,0,0,0.5); animation: slideInRight 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; flex-direction: column; gap: 8px; min-width: 280px; pointer-events: auto;}
+        .t-head { font-family: 'Space Grotesk'; font-size: 14px; font-weight: 700; color: var(--teal-soft); display: flex; align-items: center; gap: 8px;}
+        .t-body { font-size: 12px; color: var(--text-main); font-weight: 500; line-height: 1.5;}
+        .toast-btn-group { display: flex; gap: 8px; margin-top: 5px; }
+        .t-btn { flex: 1; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; text-align: center; font-family: 'Inter'; border: none; transition: 0.2s;}
+        .t-btn-calc { background: var(--teal-soft); color: #000; }
+        .t-btn-tv { background: transparent; color: var(--teal-soft); border: 1px solid var(--teal-soft); text-decoration: none;}
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; } }
+
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11, 17, 32, 0.9); z-index: 9999; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;}
+        .m-content { background: var(--bg-card); border: 1px solid var(--border-soft); width: 100%; max-width: 900px; border-radius: 20px; padding: 30px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); max-height: 95vh; overflow-y: auto;}
+        .m-close { position: absolute; top: 20px; right: 25px; color: var(--text-muted); font-size: 28px; cursor: pointer; line-height: 1;}
+        .m-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-soft); padding-bottom: 20px; margin-bottom: 20px;}
+        .m-title-area { display: flex; align-items: center; gap: 15px; }
+        .m-title { font-family: 'Space Grotesk', sans-serif; font-size: 36px; font-weight: 700; color: var(--text-main); margin: 0; }
+        .m-price { font-size: 32px; font-weight: 700; color: var(--teal-soft); font-family: 'Space Grotesk', sans-serif;}
+        .m-grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .m-grid-layout { grid-template-columns: 1fr; } }
+        .info-box { background: var(--bg-panel); border: 1px solid var(--border-soft); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 15px;}
+        .box-title { font-family: 'Space Grotesk'; font-size: 16px; font-weight: 600; color: var(--text-main); border-bottom: 1px dashed var(--border-soft); padding-bottom: 10px; margin-bottom: 5px; display: flex; align-items: center; gap: 8px;}
+        .intel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .intel-item { background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.02);}
+        .intel-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+        .intel-val { font-size: 16px; font-weight: 700; font-family: 'Space Grotesk'; color: var(--text-main); }
+        .intel-val.red { color: var(--rose-soft); }
+        .news-area { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; border: 1px solid rgba(255,255,255,0.02); flex-grow: 1;}
+        .sentiment-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; margin-bottom: 15px; background: rgba(45, 212, 191, 0.1); color: var(--teal-soft); border: 1px solid var(--teal-soft);}
+        .news-desc { font-size: 13px; line-height: 1.6; color: var(--text-muted); margin-bottom: 15px;}
+        .btn-news { display: block; width: 100%; text-align: center; background: #F59E0B; color: #000; padding: 12px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 13px; font-family: 'Inter';}
+        .input-group { display: flex; justify-content: space-between; align-items: center; }
+        .input-group label { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+        .input-group input { background: var(--bg-base); border: 1px solid var(--border-soft); color: var(--text-main); padding: 10px 12px; border-radius: 8px; font-family: 'Space Grotesk'; font-weight: 600; width: 120px; text-align: right; outline: none; transition: 0.2s;}
+        .input-group input:focus { border-color: var(--teal-soft); }
+        .res-box { background: rgba(11, 17, 32, 0.5); border-radius: 10px; padding: 16px; margin-top: 5px;}
+        .res-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; align-items: center;}
+        .res-row:last-child { margin-bottom: 0; border-top: 1px dashed var(--border-soft); padding-top: 10px; margin-top: 5px;}
+        .res-lbl { font-weight: 500; color: var(--text-muted); } .res-val { font-weight: 600; font-family: 'Space Grotesk'; font-size: 15px; } 
+        .res-big { font-size: 20px; color: var(--text-main); font-weight: 700;}
+        .txt-green { color: var(--teal-soft); } .txt-red { color: var(--rose-soft); }
+        .modal-tv-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px solid var(--border-soft); padding: 12px; border-radius: 8px; margin-top: 15px; font-weight: 600; font-size: 13px; text-decoration: none; transition: 0.2s;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>SYS.OMNI_BUBBLE <span class="v-badge">PERFORMANCE MODE</span></h1>
+        <div class="controls">
+            <button onclick="window.location.href='index.html'">📊 SEKTOR RADAR</button>
+            <button class="btn-active" onclick="window.location.href='bubble.html'">🫧 BUBBLE</button>
+            <button onclick="window.location.href='smc.html'">🐋 SMC</button>
+            <button onclick="window.location.href='web3.html'">🪂 WEB3</button>
+            <button onclick="window.location.href='journal.html'">📓 JURNAL</button>
+            <button onclick="window.location.href='news.html'">📰 BERITA</button>
+            <button class="btn-sync" onclick="forceSync()">SINKRONISASI</button>
+        </div>
+    </header>
+
+    <div class="hud-panel">
+        <div class="hud-box"><div class="hud-lbl">TREN MAKRO (BTC)</div><div class="hud-val" id="rb-val">Menganalisa...</div></div>
+        <div class="hud-box"><div class="hud-lbl">SENTIMEN (F&G)</div><div class="hud-val" id="fg-val">--</div></div>
+        <div class="hud-box"><div class="hud-lbl">SIKLUS ALAM (LUNAR)</div><div class="hud-val" id="astro-val">--</div></div>
+        <div class="hud-box"><div class="hud-lbl">TARGET SPOT BELI</div><div class="hud-val" id="target-count" style="color:var(--teal-soft);">0</div></div>
+    </div>
+
+    <div class="toolbar">
+        <div class="tf-container">
+            <button class="tf-btn active" id="btn-short" onclick="setMode('short')">DAY SWING (24H)</button>
+            <button class="tf-btn" id="btn-long" onclick="setMode('long')">POSITION (7D)</button>
+        </div>
+        <div class="zoom-controls">
+            <button class="zoom-btn" onclick="zoomManual(0.2)">+</button>
+            <button class="zoom-btn" onclick="zoomManual(-0.2)">-</button>
+            <button class="zoom-btn" onclick="resetView()" style="font-size:12px; font-weight:bold;">RESET</button>
+        </div>
+    </div>
+
+    <div id="viewport">
+        <div id="bubbleCanvas"></div>
+    </div>
+
+    <div id="toast-container"></div>
+    <div class="ticker-wrap"><div class="ticker-label">LIVE CRYPTO</div><div class="ticker" id="macro-ticker"><span class="t-item">Memuat satelit...</span></div></div>
+
+    <div id="modal">
+        <div class="m-content">
+            <div class="m-close" onclick="closeModal()">&times;</div>
+            <div class="m-header">
+                <div class="m-title-area">
+                    <img id="m-img" src="" style="width: 40px; height: 40px; border-radius: 50%; display: none;">
+                    <div>
+                        <h2 class="m-title" id="m-title">--</h2>
+                        <div style="font-size:12px; color:var(--text-muted); margin-top:5px;" id="m-mode-badge">MODE: --</div>
+                    </div>
+                </div>
+                <div class="m-price" id="m-price">--</div>
+            </div>
+            <div class="m-grid-layout">
+                <div style="display: flex; flex-direction: column; gap: 20px;">
+                    <div class="info-box">
+                        <div class="box-title">📊 Market Intel</div>
+                        <div class="intel-grid">
+                            <div class="intel-item"><div class="intel-lbl">Rank</div><div class="intel-val" id="m-rank">--</div></div>
+                            <div class="intel-item"><div class="intel-lbl">Volume 24H</div><div class="intel-val" id="m-vol">--</div></div>
+                            <div class="intel-item"><div class="intel-lbl">All Time High</div><div class="intel-val txt-green" id="m-ath">--</div></div>
+                            <div class="intel-item"><div class="intel-lbl">Drop dari ATH</div><div class="intel-val txt-red" id="m-ath-drop">--</div></div>
+                        </div>
+                    </div>
+                    <div class="info-box" style="flex-grow: 1;">
+                        <div class="box-title">📰 Radar Berita & Sentimen</div>
+                        <div class="news-area">
+                            <div id="m-sentiment" class="sentiment-badge">Menganalisa Sentimen...</div>
+                            <div class="news-desc" id="m-desc">Menyadap data Fundamental...</div>
+                            <a href="#" target="_blank" class="btn-news" id="l-news">Lacak Berita Terkini ⚡</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-box">
+                    <div class="box-title">⚖️ Kalkulator Eksekusi Spot</div>
+                    <div class="input-group"><label>Total Modal (USD)</label><input type="number" id="calc-capital" value="1000" oninput="calculateRisk()"></div>
+                    <div class="input-group"><label>Batas Risiko (SL %)</label><input type="number" id="calc-risk" value="10" step="0.5" oninput="calculateRisk()"></div>
+                    <div class="res-box">
+                        <div class="res-row"><span class="res-lbl">Batas Beli (Entry):</span><span class="res-val" id="res-entry">--</span></div>
+                        <div class="res-row"><span class="res-lbl">Target Profit (TP):</span><span class="res-val txt-green" id="res-tp">--</span></div>
+                        <div class="res-row"><span class="res-lbl">Batas Rugi (SL):</span><span class="res-val txt-red" id="res-sl">--</span></div>
+                        <div class="res-row" style="margin-top: 15px;"><span class="res-lbl">Ukuran Posisi:</span><span class="res-val res-big" id="res-size">0.00</span></div>
+                        <div class="res-row"><span class="res-lbl">Modal Terpakai:</span><span class="res-val" id="res-cost">$0.00</span></div>
+                        <div class="res-row"><span class="res-lbl txt-green">Proyeksi Cuan:</span><span class="res-val txt-green" id="res-profit">+$0.00</span></div>
+                        <div class="res-row"><span class="res-lbl txt-red">Proyeksi Rugi:</span><span class="res-val txt-red" id="res-loss">-$0.00</span></div>
+                    </div>
+                    <button style="width:100%; background:rgba(45, 212, 191, 0.1); color:var(--teal-soft); border:1px solid var(--teal-soft); padding:12px; margin-top:10px; border-radius: 8px; font-weight: 600; cursor:pointer;" onclick="saveToRealJournal()">💾 REKAM KE JURNAL REAL</button>
+                    <a href="#" target="_blank" id="modal-tv-btn" class="modal-tv-btn">📈 LIHAT GRAFIK DI TRADINGVIEW ↗</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext; let actx;
+        function initAudio() { if(!actx) actx = new AudioContext(); if(actx.state === 'suspended') actx.resume(); }
+        function sfx() { initAudio(); setTimeout(() => { const osc = actx.createOscillator(); const gain = actx.createGain(); osc.connect(gain); gain.connect(actx.destination); gain.gain.setValueAtTime(0.05, actx.currentTime); osc.start(); osc.stop(actx.currentTime + 0.1); }, 10); }
+        function sfxAlert() {
+            initAudio(); setTimeout(() => {
+                const osc = actx.createOscillator(); const gain = actx.createGain();
+                osc.type = 'sine'; osc.frequency.setValueAtTime(880, actx.currentTime); 
+                osc.frequency.exponentialRampToValueAtTime(440, actx.currentTime + 0.3); 
+                gain.gain.setValueAtTime(0.1, actx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.3);
+                osc.connect(gain); gain.connect(actx.destination);
+                osc.start(); osc.stop(actx.currentTime + 0.3);
+            }, 10);
+        }
+
+        // LOGIKA ZOOM & PAN KANVAS (OPTIMIZED DENGAN REQUEST ANIMATION FRAME)
+        const viewport = document.getElementById('viewport');
+        const canvas = document.getElementById('bubbleCanvas');
+        let isDragging = false;
+        let startX, startY;
+        let currentX = 0, currentY = 0;
+        let scale = 0.5; // Start slightly more zoomed out
+        let isRenderPending = false;
+        
+        function applyTransform() {
+            if (!isRenderPending) {
+                isRenderPending = true;
+                requestAnimationFrame(() => {
+                    canvas.style.transform = `translate(calc(-50% + ${currentX}px), calc(-50% + ${currentY}px)) scale(${scale})`;
+                    isRenderPending = false;
+                });
+            }
+        }
+        applyTransform();
+
+        viewport.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - currentX; startY = e.clientY - currentY;
+            viewport.style.cursor = 'grabbing';
+        });
+        viewport.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            currentX = e.clientX - startX; currentY = e.clientY - startY;
+            applyTransform();
+        });
+        viewport.addEventListener('mouseup', () => { isDragging = false; viewport.style.cursor = 'grab'; });
+        viewport.addEventListener('mouseleave', () => { isDragging = false; viewport.style.cursor = 'grab'; });
+
+        viewport.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            scale -= e.deltaY * 0.001;
+            scale = Math.max(0.15, Math.min(scale, 2));
+            applyTransform();
+        }, {passive: false});
+
+        let initialDistance = 0; let initialScale = 1;
+        viewport.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - currentX; startY = e.touches[0].clientY - currentY;
+            } else if (e.touches.length === 2) {
+                initialDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                initialScale = scale;
+            }
+        }, {passive: false});
+        viewport.addEventListener('touchmove', (e) => {
+            e.preventDefault(); 
+            if (e.touches.length === 1 && isDragging) {
+                currentX = e.touches[0].clientX - startX; currentY = e.touches[0].clientY - startY;
+                applyTransform();
+            } else if (e.touches.length === 2) {
+                const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                scale = initialScale * (currentDistance / initialDistance);
+                scale = Math.max(0.15, Math.min(scale, 2));
+                applyTransform();
+            }
+        }, {passive: false});
+        viewport.addEventListener('touchend', () => { isDragging = false; });
+
+        function zoomManual(amt) { scale += amt; scale = Math.max(0.15, Math.min(scale, 2)); applyTransform(); }
+        function resetView() { currentX = 0; currentY = 0; scale = 0.5; applyTransform(); }
+
+        let globalCoins = [];
+        let currentMode = 'short'; 
+        let spawnTimeoutIds = [];
+        let activeCoinSetup = { entry: 0, sl: 0, tp: 0, symbol: '' };
+        let alertedCoins = new Set();
+        let suppressAlerts = true; 
+
+        function showBuyAlert(sym, price, en, sl, tp, id) {
+            sfxAlert();
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            let dec = price < 1 ? 4 : 2;
+            
+            toast.innerHTML = `
+                <div class="t-head"><div class="pulse-dot" style="width:8px; height:8px;"></div> 🔥 SINYAL BUBBLE: ${sym}</div>
+                <div class="t-body">Harga <b>$${price.toLocaleString(undefined, {maximumFractionDigits: dec})}</b> masuk area Sniper.</div>
+                <div class="toast-btn-group">
+                    <button class="t-btn t-btn-calc" onclick="openNode('${id}', '${sym}', ${price}, ${en}, ${sl}, ${tp}, 'BULLISH', 'var(--teal-soft)')">KALKULATOR</button>
+                    <a href="https://www.tradingview.com/symbols/${sym}USD/" target="_blank" class="t-btn t-btn-tv">CHART ↗</a>
+                </div>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'fadeOut 0.5s forwards'; setTimeout(() => toast.remove(), 500); }, 6000);
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-short').classList.toggle('active', mode === 'short');
+            document.getElementById('btn-long').classList.toggle('active', mode === 'long');
+            alertedCoins.clear(); suppressAlerts = true;
+            startHolographicSpawn();
+        }
+
+        async function fetchMarketData() {
+            const cachedTime = sessionStorage.getItem('omni_time');
+            const cachedData = sessionStorage.getItem('omni_data');
+            const now = new Date().getTime();
+            if (globalCoins.length === 0) suppressAlerts = true;
+
+            if (cachedData && cachedTime && (now - parseInt(cachedTime) < 180000)) {
+                globalCoins = JSON.parse(cachedData);
+                processMacroAndNarrative(); updateMacroTicker(); startHolographicSpawn();
+                return;
+            }
+
+            document.querySelector('.btn-sync').innerText = "MENARIK DATA...";
+            try {
+                // Di performance mode, kita turunkan limit ke 180 untuk keseimbangan tablet
+                const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=180&page=1&sparkline=true');
+                if (!res.ok) throw new Error("API Rate Limit");
+                const data = await res.json();
+                const stablecoins = ['usdt', 'usdc', 'dai', 'fdusd', 'tusd', 'usdd', 'steth', 'wbtc'];
+                globalCoins = data.filter(c => !stablecoins.includes(c.symbol.toLowerCase())).slice(0, 150); // Maks 150 node visual
+                
+                sessionStorage.setItem('omni_data', JSON.stringify(globalCoins));
+                sessionStorage.setItem('omni_time', now.toString());
+                
+                processMacroAndNarrative(); updateMacroTicker(); startHolographicSpawn();
+            } catch (error) {
+                if(cachedData) {
+                    globalCoins = JSON.parse(cachedData);
+                    processMacroAndNarrative(); updateMacroTicker(); startHolographicSpawn();
+                }
+            } finally { document.querySelector('.btn-sync').innerText = "SINKRONISASI"; }
+        }
+
+        async function fetchFearAndGreed() {
+            try {
+                const res = await fetch('https://api.alternative.me/fng/?limit=1');
+                const data = await res.json();
+                if (data && data.data && data.data.length > 0) {
+                    const fgData = data.data[0];
+                    const val = parseInt(fgData.value);
+                    const cls = fgData.value_classification.toUpperCase();
+                    let cStr = val >= 55 ? "var(--teal-soft)" : (val <= 45 ? "var(--rose-soft)" : "var(--gold-soft)"); 
+                    document.getElementById('fg-val').innerHTML = `<span style="color:${cStr}">${val} / ${cls}</span>`;
+                }
+            } catch (e) {}
+        }
+
+        function forceSync() {
+            sessionStorage.removeItem('omni_time'); 
+            alertedCoins.clear(); suppressAlerts = true;
+            fetchFearAndGreed(); fetchMarketData();
+        }
+
+        function processMacroAndNarrative() {
+            const btc = globalCoins.find(c => c.symbol.toLowerCase() === 'btc');
+            if (btc && btc.sparkline_in_7d && btc.sparkline_in_7d.price.length > 0) {
+                const prices = btc.sparkline_in_7d.price;
+                const avg7d = prices.reduce((a, b) => a + b, 0) / prices.length;
+                const current = btc.current_price;
+                let regimeEl = document.getElementById('rb-val');
+                if (current > avg7d * 1.02) regimeEl.innerHTML = "<span style='color:var(--teal-soft)'>🟢 BULLISH (GASPOL)</span>";
+                else if (current < avg7d * 0.98) regimeEl.innerHTML = "<span style='color:var(--rose-soft)'>🔴 BEARISH (RISIKO TINGGI)</span>";
+                else regimeEl.innerHTML = "<span style='color:var(--gold-soft)'>🟡 CHOPPY (SIDEWAYS)</span>";
+            }
+        }
+
+        function updateMacroTicker() {
+            if(globalCoins.length > 5) {
+                let tHtml = '';
+                for(let i=0; i<8; i++) {
+                    let c = globalCoins[i]; let chg = c.price_change_percentage_24h || 0;
+                    tHtml += `<span class="t-item"><span class="t-sym">${c.symbol.toUpperCase()}</span> $${c.current_price.toLocaleString()} <span class="${chg >= 0 ? 'txt-green' : 'txt-red'}">${Math.abs(chg).toFixed(2)}%</span></span>`;
+                }
+                document.getElementById('macro-ticker').innerHTML = tHtml;
+            }
+        }
+
+        function getSpiralPosition(r, existingBubbles, centerX, centerY) {
+            let angle = 0; let currentRadius = r; 
+            while (true) {
+                let x = centerX + currentRadius * Math.cos(angle);
+                let y = centerY + currentRadius * Math.sin(angle);
+                
+                let isOverlapping = false;
+                for (let b of existingBubbles) {
+                    let dx = x - b.x; let dy = y - b.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < (r + b.r + 4)) { isOverlapping = true; break; }
+                }
+                if (!isOverlapping) return { x, y }; 
+                angle += 15 / Math.max(currentRadius, 15); 
+                currentRadius += 2.5 * (15 / Math.max(currentRadius, 15)); 
+            }
+        }
+
+        function startHolographicSpawn() {
+            const canvasCont = document.getElementById('bubbleCanvas');
+            canvasCont.innerHTML = ''; 
+            spawnTimeoutIds.forEach(id => clearTimeout(id)); spawnTimeoutIds = [];
+            if (globalCoins.length === 0) return;
+
+            let sortedCoins = [...globalCoins].sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0));
+            let caps = sortedCoins.map(c => Math.log10(c.market_cap || 1));
+            let maxCap = Math.max(...caps); let minCap = Math.min(...caps);
+
+            const centerX = 3000; const centerY = 3000; // Dikurangi agar tidak berat di memori
+            let bubblesOnScreen = []; let targetSymbols = [];
+
+            // Membangun fragment memori (mengurangi repaint layar berkali-kali)
+            let fragment = document.createDocumentFragment();
+
+            sortedCoins.forEach((coin, index) => {
+                const p = coin.current_price; let h, l, chg;
+                if (currentMode === 'short') {
+                    h = coin.high_24h; l = coin.low_24h; chg = coin.price_change_percentage_24h || 0;
+                } else {
+                    if (coin.sparkline_in_7d && coin.sparkline_in_7d.price.length > 0) {
+                        let prices7d = coin.sparkline_in_7d.price;
+                        h = Math.max(...prices7d); l = Math.min(...prices7d);
+                        chg = ((p - prices7d[0]) / prices7d[0]) * 100;
+                    } else return;
+                }
+
+                if(!h || !l || h === l) return;
+                const diff = h - l; 
+                const fib618 = h - (diff * 0.618); const fib786 = h - (diff * 0.786);
+                const fib886 = h - (diff * 0.886); const tp = h + (diff * 1.618);
+
+                let capLog = Math.log10(coin.market_cap || 1);
+                let sizeRatio = (capLog - minCap) / (maxCap - minCap);
+                
+                // Ukuran proporsional, font muat
+                let bSize = 65 + Math.pow(sizeRatio, 1.5) * 120; 
+                let r = bSize / 2;
+
+                let pos = getSpiralPosition(r, bubblesOnScreen, centerX, centerY);
+                bubblesOnScreen.push({ x: pos.x, y: pos.y, r: r });
+
+                let bHtml = document.createElement('div');
+                let bClass = 'bubble'; let bText = ''; let bColor = ''; let bStatus = '';
+                let actualEn = (p >= fib886 && p <= fib786) ? p : fib786;
+                let actualSl = (p >= fib886 && p <= fib786) ? l : fib886;
+                let symStr = coin.symbol.toUpperCase();
+
+                if (p < fib886) { 
+                    bClass += ' target-sweep'; bText = 'SAPUAN'; bColor = 'var(--rose-soft)'; bStatus = 'BEARISH / SWEEP';
+                    alertedCoins.delete(symStr);
+                } 
+                else if (p >= fib886 && p <= fib786) {
+                    bClass += ' target-buy'; bText = 'BELI'; bColor = 'var(--teal-soft)'; bStatus = 'BULLISH / REJECTION';
+                    targetSymbols.push(symStr);
+                    if (!alertedCoins.has(symStr)) {
+                        if (!suppressAlerts) { showBuyAlert(symStr, p, actualEn, actualSl, tp, coin.id); }
+                        alertedCoins.add(symStr);
+                    }
+                } 
+                else if (p > fib786 && p <= fib618) { 
+                    bClass += ' target-watch'; bText = 'PANTAU'; bColor = 'var(--gold-soft)'; bStatus = 'NEUTRAL';
+                    alertedCoins.delete(symStr);
+                } 
+                else {
+                    bStatus = chg > 0 ? 'BULLISH' : 'BEARISH';
+                    if (chg > 0) { bClass += ' b-pump'; bColor = 'var(--teal-soft)'; bText = `+${chg.toFixed(1)}%`; }
+                    else { bClass += ' b-dump'; bColor = 'var(--rose-soft)'; bText = `${chg.toFixed(1)}%`; }
+                    alertedCoins.delete(symStr);
+                }
+
+                bHtml.className = bClass;
+                bHtml.style.left = `${pos.x}px`; bHtml.style.top = `${pos.y}px`; 
+                bHtml.style.width = `${bSize}px`; bHtml.style.height = `${bSize}px`;
+                bHtml.style.zIndex = Math.floor(500 - r); 
+                
+                let fontSym = (bSize > 100) ? '18px' : ((bSize > 75) ? '14px' : '11px');
+                let fontChg = (bSize > 100) ? '12px' : '9px'; 
+
+                bHtml.innerHTML = `<div class="b-sym" style="font-size:${fontSym};">${symStr}</div><div class="b-chg" style="color:${bColor}; font-size:${fontChg};">${bText}</div>`;
+                bHtml.onclick = () => openNode(coin.id, symStr, p, actualEn, actualSl, tp, bStatus, bColor);
+                
+                // Set initial transform for entry animation
+                bHtml.style.transform = `translate(-50%, -50%) scale(0)`;
+                fragment.appendChild(bHtml); 
+                
+                let tid = setTimeout(() => {
+                    bHtml.style.transform = `translate(-50%, -50%) scale(1)`; 
+                    bHtml.style.opacity = '1';
+                }, 50 + (index * 10)); // Mempercepat render awal
+                spawnTimeoutIds.push(tid);
+            });
+            
+            canvasCont.appendChild(fragment); // Render ke DOM sekaligus (Sangat ringan)
+            document.getElementById('target-count').innerText = targetSymbols.length;
+            setTimeout(() => { if (suppressAlerts) suppressAlerts = false; }, sortedCoins.length * 10 + 1000);
+        }
+
+        async function openNode(id, sym, price, en, sl, tp, status, statusColor) {
+            sfx(); const m = document.getElementById('modal'); m.style.display = 'flex';
+            activeCoinSetup = { entry: en, sl: sl, tp: tp, symbol: sym };
+            document.getElementById('m-title').innerText = sym; 
+            let dec = price < 1 ? 4 : 2;
+            document.getElementById('m-price').innerText = "$" + price.toLocaleString(undefined, {maximumFractionDigits: dec});
+            document.getElementById('res-entry').innerText = "$" + en.toLocaleString(undefined, {maximumFractionDigits: dec});
+            document.getElementById('res-tp').innerText = "$" + tp.toLocaleString(undefined, {maximumFractionDigits: dec});
+            document.getElementById('res-sl').innerText = "$" + sl.toLocaleString(undefined, {maximumFractionDigits: dec});
+            document.getElementById('l-news').href = `https://cryptopanic.com/news/${sym.toLowerCase()}/`;
+            document.getElementById('modal-tv-btn').href = `https://www.tradingview.com/symbols/${sym}USD/`;
+            calculateRisk();
+        }
+
+        function calculateRisk() {
+            if (activeCoinSetup.entry === 0) return; 
+            let capital = parseFloat(document.getElementById('calc-capital').value); let riskPercent = parseFloat(document.getElementById('calc-risk').value);
+            if (isNaN(capital) || isNaN(riskPercent) || capital <= 0 || riskPercent <= 0) return;
+            let riskAmountUSD = capital * (riskPercent / 100); 
+            let riskPerCoin = activeCoinSetup.entry - activeCoinSetup.sl;
+            if (riskPerCoin <= 0) return;
+            let positionSizeCoins = riskAmountUSD / riskPerCoin; 
+            let totalCostUSD = positionSizeCoins * activeCoinSetup.entry;
+            let profitPerCoin = activeCoinSetup.tp - activeCoinSetup.entry; let totalProfitUSD = positionSizeCoins * profitPerCoin;
+            
+            let coinDecimals = activeCoinSetup.entry < 1 ? 2 : 4; if (activeCoinSetup.entry < 0.01) coinDecimals = 0; 
+            document.getElementById('res-size').innerText = positionSizeCoins.toLocaleString(undefined, {maximumFractionDigits: coinDecimals}) + " " + activeCoinSetup.symbol;
+            document.getElementById('res-cost').innerText = "$" + totalCostUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('res-profit').innerText = "+$" + totalProfitUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('res-loss').innerText = "-$" + riskAmountUSD.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        }
+
+        function saveToRealJournal() {
+            if(activeCoinSetup.entry === 0) return;
+            let rJournal = JSON.parse(localStorage.getItem('omni_journal_real') || '[]');
+            rJournal.push({
+                id: new Date().getTime(), symbol: activeCoinSetup.symbol, entry: activeCoinSetup.entry,
+                sl: activeCoinSetup.sl, tp: activeCoinSetup.tp, size: document.getElementById('res-size').innerText,
+                cost: document.getElementById('res-cost').innerText, date: new Date().toLocaleDateString('id-ID'),
+                mode: currentMode, status: 'RUNNING'
+            });
+            localStorage.setItem('omni_journal_real', JSON.stringify(rJournal));
+            alert("Terekam ke Jurnal Real!"); closeModal();
+        }
+
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+        
+        window.onload = () => { 
+            fetchFearAndGreed(); sessionStorage.removeItem('omni_time'); fetchMarketData(); 
+            // Interval dipanjangkan sedikit agar tidak terlalu membebani tablet
+            setInterval(() => { fetchMarketData(); }, 30000); 
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AstroFib V7.2 - AI News Radar</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0B1120; --bg-panel: #151E32; --bg-card: #1E293B; --border-soft: #334155;
+            --text-main: #F8FAFC; --text-muted: #94A3B8;
+            --teal-soft: #2DD4BF; --rose-soft: #FB7185; --gold-soft: #FBBF24; --purple-soft: #A78BFA;
+        }
+        
+        body { margin: 0; padding: 15px; padding-bottom: 80px; background-color: var(--bg-base); color: var(--text-main); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased;}
+        
+        /* OMNI HEADER STANDARD */
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-soft); padding-bottom: 15px; margin-bottom: 20px; overflow-x: auto;}
+        h1 { font-family: 'Space Grotesk', sans-serif; font-size: 24px; margin: 0; color: var(--text-main); font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; margin-right: 20px;}
+        .v-badge { font-size: 11px; color: var(--purple-soft); border: 1px solid var(--purple-soft); padding: 2px 6px; border-radius: 4px; margin-left: 8px; vertical-align: middle;}
+        
+        .controls { display: flex; gap: 8px; white-space: nowrap;}
+        button { background: var(--bg-panel); border: 1px solid var(--border-soft); color: var(--text-muted); padding: 10px 16px; border-radius: 8px; font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s ease;}
+        button:hover { color: var(--text-main); border-color: var(--text-muted); }
+        .btn-active { background: rgba(167, 139, 250, 0.1); border-color: var(--purple-soft); color: var(--purple-soft); }
+        .btn-sync { background: rgba(45, 212, 191, 0.1); border-color: rgba(45, 212, 191, 0.3); color: var(--teal-soft); margin-left: 10px;}
+
+        /* DASHBOARD BERITA */
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--bg-panel); padding: 20px; border-radius: 12px; border: 1px solid var(--border-soft);}
+        @media (max-width: 768px) { .dashboard-header { flex-direction: column; align-items: flex-start; gap: 15px; } }
+        .dash-title { font-family: 'Space Grotesk'; font-size: 20px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 10px;}
+        .pulse-dot { width: 12px; height: 12px; background: var(--teal-soft); border-radius: 50%; box-shadow: 0 0 10px var(--teal-soft); animation: pulseDot 2s infinite;}
+        @keyframes pulseDot { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } 100% { opacity: 1; transform: scale(1); } }
+
+        .stats-row { display: flex; gap: 20px; }
+        .stat-item { text-align: right; }
+        @media (max-width: 768px) { .stat-item { text-align: left; } }
+        .stat-lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; font-weight: 600;}
+        .stat-val { font-size: 22px; font-weight: 700; font-family: 'Space Grotesk'; }
+        .txt-teal { color: var(--teal-soft); } .txt-rose { color: var(--rose-soft); }
+
+        /* GRID BERITA */
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+        .n-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: 0.2s; position: relative; overflow: hidden;}
+        .n-card:hover { border-color: var(--text-muted); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.2);}
+        
+        .n-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .n-source { font-size: 11px; color: var(--text-muted); font-weight: 600; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 6px; letter-spacing: 0.5px;}
+        .n-time { font-size: 11px; color: var(--text-muted); }
+
+        .n-title { font-family: 'Space Grotesk'; font-size: 16px; font-weight: 700; color: var(--text-main); line-height: 1.4; margin: 0;}
+        .n-body { font-size: 13px; color: var(--text-muted); line-height: 1.5; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;}
+
+        .n-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; margin-top: auto;}
+        
+        .badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; font-family: 'Inter'; display: flex; align-items: center; gap: 5px;}
+        .badge-bull { background: rgba(45, 212, 191, 0.1); border: 1px solid var(--teal-soft); color: var(--teal-soft); }
+        .badge-bear { background: rgba(251, 113, 133, 0.1); border: 1px solid var(--rose-soft); color: var(--rose-soft); }
+        .badge-neut { background: rgba(251, 191, 36, 0.1); border: 1px solid var(--gold-soft); color: var(--gold-soft); }
+
+        .btn-read { background: transparent; color: var(--purple-soft); border: none; font-size: 12px; font-weight: 600; cursor: pointer; text-decoration: none; transition: 0.2s;}
+        .btn-read:hover { text-decoration: underline; color: #fff;}
+
+        .empty-state { grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--text-muted); border: 1px dashed var(--border-soft); border-radius: 12px;}
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>SYS.INTEL <span class="v-badge">AI PARSER</span></h1>
+        <div class="controls">
+            <button onclick="window.location.href='index.html'">📊 KARTU</button>
+            <button onclick="window.location.href='bubble.html'">🫧 BUBBLE</button>
+            <button onclick="window.location.href='smc.html'">🐋 SMC</button>
+            <button onclick="window.location.href='web3.html'">🪂 WEB3</button>
+            <button onclick="window.location.href='journal.html'">📓 JURNAL</button>
+            <button class="btn-active" onclick="window.location.href='news.html'">📰 BERITA</button>
+            <button class="btn-sync" onclick="fetchNews()" id="btn-sync">PINDAI ULANG</button>
+        </div>
+    </header>
+
+    <div class="dashboard-header">
+        <div class="dash-title">
+            <div class="pulse-dot"></div> A.I. SENTIMENT ENGINE
+        </div>
+        <div class="stats-row">
+            <div class="stat-item"><div class="stat-lbl">BULLISH NEWS</div><div class="stat-val txt-teal" id="cnt-bull">0</div></div>
+            <div class="stat-item"><div class="stat-lbl">BEARISH NEWS</div><div class="stat-val txt-rose" id="cnt-bear">0</div></div>
+            <div class="stat-item"><div class="stat-lbl">MARKET MOOD</div><div class="stat-val" id="market-mood" style="color:var(--gold-soft)">--</div></div>
+        </div>
+    </div>
+
+    <div class="news-grid" id="news-container">
+        <div class="empty-state">Menghidupkan mesin kecerdasan buatan dan menyadap frekuensi satelit global...</div>
+    </div>
+
+    <script>
+        // KATA KUNCI SENTIMEN (AI LITE ENGINE)
+        const bullWords = ['surge', 'jump', 'bull', 'bullish', 'high', 'partnership', 'launch', 'upgrade', 'breakout', 'buy', 'adoption', 'approve', 'integration', 'etf', 'burn', 'soars', 'gains', 'rally', 'positive'];
+        const bearWords = ['drop', 'fall', 'bear', 'bearish', 'crash', 'dump', 'hack', 'sec', 'lawsuit', 'sell', 'ban', 'delay', 'exploit', 'scam', 'bankruptcy', 'plunges', 'negative', 'fears', 'regulator'];
+
+        function analyzeSentiment(text) {
+            let t = text.toLowerCase();
+            let bullScore = 0; let bearScore = 0;
+
+            bullWords.forEach(w => { if(t.includes(w)) bullScore++; });
+            bearWords.forEach(w => { if(t.includes(w)) bearScore++; });
+
+            if(bullScore > bearScore) return { label: 'BULLISH IMPACT', cls: 'badge-bull', icon: '🟢' };
+            if(bearScore > bullScore) return { label: 'BEARISH IMPACT', cls: 'badge-bear', icon: '🔴' };
+            return { label: 'NEUTRAL', cls: 'badge-neut', icon: '🟡' };
+        }
+
+        function timeAgo(unixTimestamp) {
+            const seconds = Math.floor((new Date() - new Date(unixTimestamp * 1000)) / 1000);
+            let interval = seconds / 3600;
+            if (interval > 1) return Math.floor(interval) + " jam lalu";
+            interval = seconds / 60;
+            if (interval > 1) return Math.floor(interval) + " menit lalu";
+            return Math.floor(seconds) + " detik lalu";
+        }
+
+        async function fetchNews() {
+            const btn = document.getElementById('btn-sync');
+            const container = document.getElementById('news-container');
+            
+            btn.innerText = "MEMINDAI...";
+            
+            try {
+                // Menambahkan headers cache 'no-store' agar request selalu segar
+                const res = await fetch('https://min-api.cryptocompare.com/data/v2/news/?lang=EN', {
+                    cache: 'no-store'
+                });
+                
+                if (!res.ok) throw new Error(`HTTP Error: Akses Ditolak (${res.status})`);
+                const json = await res.json();
+                
+                // Cek Rate Limit dari API
+                if(json.Message && json.Message.includes("rate limit")) {
+                    throw new Error("Satelit membatasi akses (Rate Limit). Tunggu 1 menit.");
+                }
+
+                if(json.Data && json.Data.length > 0) {
+                    let html = '';
+                    let totalBull = 0; let totalBear = 0;
+
+                    json.Data.slice(0, 40).forEach(news => {
+                        const title = news.title || "Tanpa Judul";
+                        const body = news.body || "";
+                        const source = news.source_info ? news.source_info.name : "Unknown Source";
+                        const url = news.url || "#";
+                        const time = timeAgo(news.published_on);
+
+                        const sentiment = analyzeSentiment(title + " " + body);
+
+                        if(sentiment.cls === 'badge-bull') totalBull++;
+                        if(sentiment.cls === 'badge-bear') totalBear++;
+
+                        html += `
+                        <div class="n-card">
+                            <div class="n-header">
+                                <span class="n-source">${source}</span>
+                                <span class="n-time">${time}</span>
+                            </div>
+                            <h3 class="n-title">${title}</h3>
+                            <div class="n-body">${body}</div>
+                            <div class="n-footer">
+                                <div class="badge ${sentiment.cls}">${sentiment.icon} ${sentiment.label}</div>
+                                <a href="${url}" target="_blank" class="btn-read">BACA ARTIKEL ↗</a>
+                            </div>
+                        </div>`;
+                    });
+
+                    container.innerHTML = html;
+
+                    document.getElementById('cnt-bull').innerText = totalBull;
+                    document.getElementById('cnt-bear').innerText = totalBear;
+                    
+                    let moodEl = document.getElementById('market-mood');
+                    if(totalBull > totalBear * 1.5) { moodEl.innerText = "OPTIMIS"; moodEl.className = "stat-val txt-teal"; }
+                    else if(totalBear > totalBull * 1.5) { moodEl.innerText = "PANIK"; moodEl.className = "stat-val txt-rose"; }
+                    else { moodEl.innerText = "RAGU-RAGU"; moodEl.style.color = "var(--gold-soft)"; }
+                } else {
+                    throw new Error("Data berita kosong atau format API berubah.");
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state" style="color:var(--rose-soft)">
+                <strong>GAGAL MENYADAP SATELIT</strong><br><br>
+                Detail: ${error.message}<br><br>
+                Saran: Refresh halaman atau tunggu beberapa saat jika terjadi pembatasan server.
+                </div>`;
+            } finally {
+                btn.innerText = "PINDAI ULANG";
+            }
+        }
+
+        window.onload = fetchNews;
+    </script>
+</body>
+</html>
